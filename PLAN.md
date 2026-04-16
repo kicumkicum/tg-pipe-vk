@@ -23,14 +23,14 @@
 
 ## Конфигурация (environment variables)
 
-- [ ] Завести переменные окружения (локально и в Vercel):
-  - [ ] `VK_TOKEN`
-  - [ ] `VK_CHAT_ID` (целевой `peer_id`, куда отправлять сообщения в VK)
-  - [ ] `TG_TOKEN`
-  - [ ] `TG_CHAT_ID`
-  - [ ] `VK_SECRET` (secret для Callback API)
-  - [ ] `VK_CONFIRMATION` (строка подтверждения сервера VK, если используется)
-  - [ ] (опционально) `TG_WEBHOOK_SECRET` (секрет для `X-Telegram-Bot-Api-Secret-Token`)
+- [x] Завести переменные окружения (локально и в Vercel) — подготовлено через `.env.example`:
+  - [x] `VK_TOKEN`
+  - [x] `VK_CHAT_ID` (целевой `peer_id`, куда отправлять сообщения в VK)
+  - [x] `TG_TOKEN`
+  - [x] `TG_CHAT_ID`
+  - [x] `VK_SECRET` (secret для Callback API)
+  - [x] `VK_CONFIRMATION` (строка подтверждения сервера VK, если используется)
+  - [x] (опционально) `TG_WEBHOOK_SECRET` (секрет для `X-Telegram-Bot-Api-Secret-Token`)
 
 ---
 
