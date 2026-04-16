@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 import { ConfigError } from "../lib/errors";
-import { formatForTelegramHtml, formatForTelegramPlain, isBridgeMessage } from "../lib/format";
+import { formatForTelegramHtml, formatForTelegramPlain, isBridgeMessage, vkMessageWebUrl } from "../lib/format";
 import { summarizeVkCallback } from "../lib/log-sanitize";
 import { createRequestLogger } from "../lib/log";
 import { safeRetry } from "../lib/retry";
@@ -99,15 +99,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const fromIdSafe = Number.isFinite(fromId) ? fromId : 0;
 
     const profile = await resolveVkAuthor(fromIdSafe, L);
+    const vkMsgId = message?.id ?? message?.conversation_message_id;
+    const embedSeed = `vk2tg:${vkMsgId}:${message?.peer_id}:${fromRaw}`;
+
+    const peerRaw = message?.peer_id;
+    const peerId = typeof peerRaw === "number" ? peerRaw : Number(peerRaw);
+    const peerIdSafe = Number.isFinite(peerId) ? peerId : 0;
+    const cmidRaw = message?.conversation_message_id ?? message?.id;
+    const cmid = typeof cmidRaw === "number" ? cmidRaw : Number(cmidRaw);
+    const cmidSafe = Number.isFinite(cmid) ? cmid : 0;
+    const messageUrl = vkMessageWebUrl(peerIdSafe, cmidSafe);
+
     const formatted = formatForTelegramHtml({
       text,
       displayName: profile.displayName,
-      profileUrl: profile.profileUrl
+      profileUrl: profile.profileUrl,
+      messageUrl,
+      embedSeed
     });
     const plain = formatForTelegramPlain({
       text,
       displayName: profile.displayName,
-      profileUrl: profile.profileUrl
+      profileUrl: profile.profileUrl,
+      messageUrl,
+      embedSeed
     });
 
     const outbound = profile.avatarPhotoUrl

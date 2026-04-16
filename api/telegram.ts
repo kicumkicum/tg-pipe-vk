@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 import { ConfigError } from "../lib/errors";
-import { formatForVK, isBridgeMessage } from "../lib/format";
+import { formatForVK, isBridgeMessage, telegramMessageWebUrl } from "../lib/format";
 import { createRequestLogger } from "../lib/log";
 import { summarizeTelegramUpdate } from "../lib/log-sanitize";
 import { safeRetry } from "../lib/retry";
@@ -70,14 +70,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    const username =
-      typeof message?.from?.username === "string"
-        ? message.from.username
-        : [message?.from?.first_name, message?.from?.last_name].filter(Boolean).join(" ") || undefined;
+    const from = message.from;
+    const fullName = [from?.first_name, from?.last_name].filter(Boolean).join(" ").trim();
+    const displayName =
+      fullName ||
+      (typeof from?.username === "string" && from.username.length > 0 ? `@${from.username}` : "Telegram");
 
+    const profileUrl =
+      typeof from?.username === "string" && from.username.length > 0
+        ? `https://t.me/${from.username}`
+        : typeof from?.id === "number"
+          ? `tg://user?id=${from.id}`
+          : "https://t.me/";
+
+    const messageUrl = telegramMessageWebUrl({
+      chatId: message.chat.id,
+      messageId: message.message_id,
+      chatUsername: typeof message.chat?.username === "string" ? message.chat.username : undefined
+    });
+
+    const embedSeed = `tg2vk:${message.message_id}:${message.chat?.id}`;
     const formatted = formatForVK({
       text,
-      username
+      displayName,
+      profileUrl,
+      messageUrl,
+      embedSeed
     });
 
     L.info("tg.relay.start", {
