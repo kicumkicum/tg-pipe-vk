@@ -69,32 +69,32 @@
 
 ## Core bridge logic (нормализация/формат/анти-цикл)
 
-- [ ] Реализовать `isBridgeMessage(text)` → проверка наличия `[BRIDGE:`
-- [ ] Реализовать генерацию короткого идентификатора для маркера:
-  - [ ] `shortHash(sourceMessageId)` (sha1/sha256 → первые 8 символов)
-- [ ] Реализовать форматирование исходящих сообщений:
-  - [ ] `formatForTelegram(vkMsg)` → префикс источника + текст + маркер `VK→TG`
-  - [ ] `formatForVK(tgMsg)` → префикс источника + текст + маркер `TG→VK`
+- [x] Реализовать `isBridgeMessage(text)` → проверка наличия `[BRIDGE:`
+- [x] Реализовать генерацию короткого идентификатора для маркера:
+  - [x] `shortHash(sourceMessageId)` (sha1/sha256 → первые 8 символов)
+- [x] Реализовать форматирование исходящих сообщений:
+  - [x] `formatForTelegram(vkMsg)` → префикс источника + текст + маркер `VK→TG`
+  - [x] `formatForVK(tgMsg)` → префикс источника + текст + маркер `TG→VK`
 - [ ] (по желанию) Добавить нормализацию текста для fingerprint:
   - [ ] trim, схлопывание пробелов, нормализация переносов строк
   - [ ] sha256(normalizedText) (использовать только внутри формата/маркера, без хранения)
 
 ## VK/TG senders (клиенты API)
 
-- [ ] Реализовать отправку в VK через `messages.send`:
-  - [ ] `peer_id = VK_CHAT_ID`
-  - [ ] `random_id` (например timestamp), чтобы VK подавлял часть дублей отправки
-  - [ ] `access_token = VK_TOKEN`, версия API (`v`)
-- [ ] Реализовать отправку в Telegram через `sendMessage`:
-  - [ ] `chat_id = TG_CHAT_ID`
-  - [ ] `text = formattedText`
+- [x] Реализовать отправку в VK через `messages.send`:
+  - [x] `peer_id = VK_CHAT_ID`
+  - [x] `random_id` (например timestamp), чтобы VK подавлял часть дублей отправки
+  - [x] `access_token = VK_TOKEN`, версия API (`v`)
+- [x] Реализовать отправку в Telegram через `sendMessage`:
+  - [x] `chat_id = TG_CHAT_ID`
+  - [x] `text = formattedText`
 
 ## Retry layer (3 попытки, exponential backoff)
 
-- [ ] Реализовать `safeRetry(fn, retries=3)`
-- [ ] Backoff: 300ms → 600ms → 1200ms
+- [x] Реализовать `safeRetry(fn, retries=3)`
+- [x] Backoff: 300ms → 600ms → 1200ms
 - [ ] Ретраить только временные ошибки (сеть/5xx; аккуратно с 4xx)
-- [ ] Убедиться, что webhook-обработчики возвращают `200` быстро и не “висят” (лимит serverless ≤ 2 мин)
+- [x] Убедиться, что webhook-обработчики возвращают `200` быстро и не “висят” (лимит serverless ≤ 2 мин)
 
 ---
 
@@ -136,11 +136,11 @@
 
 ## Ожидаемая структура модулей (как в спецификации)
 
-- [ ] `api/vk.ts`
-- [ ] `api/telegram.ts`
-- [ ] `lib/vk.ts`
-- [ ] `lib/telegram.ts`
-- [ ] `lib/format.ts`
-- [ ] `lib/security.ts`
-- [ ] `lib/retry.ts`
+- [x] `api/vk.ts`
+- [x] `api/telegram.ts`
+- [x] `lib/vk.ts`
+- [x] `lib/telegram.ts`
+- [x] `lib/format.ts`
+- [x] `lib/security.ts`
+- [x] `lib/retry.ts`
 
