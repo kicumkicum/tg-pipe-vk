@@ -41,7 +41,16 @@ export async function sendToVK(text: string, logger?: RequestLogger): Promise<vo
   if ("error" in data) {
     const code = data.error.error_code;
     const retryable = code === 6 || code === 10;
-    logger?.warn("vk.api.outbound.api_error", { vk_error_code: code, retryable, vk_error_msg: data.error.error_msg });
+    const hint =
+      code === 901
+        ? "VK_CHAT_ID must be the conversation peer_id from message_new (see logs vk.callback.summary.peer_id), not the community group_id. Also ensure VK_TOKEN can send to that chat (community token with Messages API / correct scopes)."
+        : undefined;
+    logger?.warn("vk.api.outbound.api_error", {
+      vk_error_code: code,
+      retryable,
+      vk_error_msg: data.error.error_msg,
+      ...(hint ? { vk_error_hint: hint } : {})
+    });
     throw new ApiError(`VK API error ${code}: ${data.error.error_msg}`, { code, retryable });
   }
 
