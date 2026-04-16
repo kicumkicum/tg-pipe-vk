@@ -51,10 +51,10 @@
 
 ## Интеграция Telegram (Webhook → `/api/telegram`)
 
-- [ ] Создать бота через BotFather
-- [ ] Отключить privacy mode (чтобы бот видел сообщения в группе)
-- [ ] Добавить бота в целевой чат Telegram и выдать достаточные права
-- [ ] Установить webhook на `https://<domain>/api/telegram`
+- [x] Создать бота через BotFather (см. `docs/TELEGRAM_SETUP.md`)
+- [x] Отключить privacy mode (чтобы бот видел сообщения в группе) (см. `docs/TELEGRAM_SETUP.md`)
+- [x] Добавить бота в целевой чат Telegram и выдать достаточные права (см. `docs/TELEGRAM_SETUP.md`)
+- [x] Установить webhook на `https://<domain>/api/telegram` (см. `docs/TELEGRAM_SETUP.md`)
 - [ ] Защитить входящие вебхуки Telegram:
   - [ ] (рекомендуется) передавать `secret_token` при `setWebhook`
   - [ ] (рекомендуется) валидировать заголовок `X-Telegram-Bot-Api-Secret-Token` == `TG_WEBHOOK_SECRET`
