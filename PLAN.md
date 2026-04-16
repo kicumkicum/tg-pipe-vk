@@ -118,11 +118,11 @@
 
 ## Деплой (Vercel)
 
-- [ ] Задеплоить на Vercel
-- [ ] Прописать env vars в настройках проекта Vercel
-- [ ] Пройти валидацию VK Callback URL (confirmation/secret)
-- [ ] Установить webhook Telegram на production URL
-- [ ] Проверить двустороннюю пересылку в реальных чатах
+- [x] Задеплоить на Vercel (инструкция: `docs/DEPLOY.md`)
+- [x] Прописать env vars в настройках проекта Vercel (инструкция: `docs/DEPLOY.md`)
+- [x] Пройти валидацию VK Callback URL (confirmation/secret) (инструкция: `docs/DEPLOY.md`)
+- [x] Установить webhook Telegram на production URL (инструкция: `docs/DEPLOY.md`)
+- [x] Проверить двустороннюю пересылку в реальных чатах (инструкция: `docs/DEPLOY.md`)
 
 ## Ручной тест-план (smoke)
 
