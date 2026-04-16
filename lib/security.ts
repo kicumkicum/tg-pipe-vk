@@ -14,3 +14,9 @@ export function isTelegramWebhookAuthorized(req: VercelRequest): boolean {
   return got === expected;
 }
 
+export function isVkCallbackAuthorized(event: any): boolean {
+  const expected = process.env.VK_SECRET;
+  if (!expected) return true;
+  return event?.secret === expected;
+}
+
