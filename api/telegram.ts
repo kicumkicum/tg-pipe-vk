@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
+import { isBridgeMessage } from "../lib/format";
 import { isTelegramWebhookAuthorized } from "../lib/security";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -22,6 +23,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const text = message?.text;
   if (typeof text !== "string" || text.length === 0) {
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  if (isBridgeMessage(text)) {
     res.status(200).json({ ok: true });
     return;
   }
