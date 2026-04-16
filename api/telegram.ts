@@ -13,6 +13,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
+  const update = req.body as any;
+  const message = update?.message;
+  if (!message) {
+    res.status(200).json({ ok: true });
+    return;
+  }
+
+  const text = message?.text;
+  if (typeof text !== "string" || text.length === 0) {
+    res.status(200).json({ ok: true });
+    return;
+  }
+
   res.status(200).json({ ok: true });
 }
 
