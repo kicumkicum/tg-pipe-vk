@@ -7,7 +7,7 @@
 ## Подготовка и каркас проекта
 
 - [x] Выбран формат: **чистые Vercel Functions** (без Next.js)
-- [ ] Инициализировать Node.js проект с TypeScript
+- [x] Инициализировать Node.js проект с TypeScript
 - [ ] Настроить базовые скрипты: `dev`, `build` (и `lint` — опционально)
 - [ ] Добавить зависимости для Vercel Functions:
   - [ ] `@vercel/node` (runtime)
