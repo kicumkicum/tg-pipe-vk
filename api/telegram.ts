@@ -48,6 +48,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
+    if (message.from?.is_bot) {
+      L.info("tg.update.skipped.from_bot", { message_id: message?.message_id, duration_ms: Date.now() - startedAt });
+      res.status(200).json({ ok: true });
+      L.info("tg.http.response", { status: 200, kind: "skipped_from_bot" });
+      return;
+    }
+
     const text = message?.text;
     if (typeof text !== "string" || text.length === 0) {
       L.info("tg.update.ignored.non_text", { message_id: message?.message_id, duration_ms: Date.now() - startedAt });
@@ -70,8 +77,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const formatted = formatForVK({
       text,
-      username,
-      messageId: message.message_id
+      username
     });
 
     L.info("tg.relay.start", {

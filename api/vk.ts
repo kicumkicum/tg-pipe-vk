@@ -71,6 +71,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
+    // Сообщения, отправленные нашим же токеном в чат (эхо TG→VK), не пересылаем обратно в Telegram.
+    if (message?.out === 1 || message?.out === true) {
+      L.info("vk.message.skipped.outgoing", {
+        message_id: message?.id ?? message?.conversation_message_id,
+        peer_id: message?.peer_id,
+        duration_ms: Date.now() - startedAt
+      });
+      res.status(200).send("ok");
+      L.info("vk.http.response", { status: 200, kind: "skipped_outgoing" });
+      return;
+    }
+
     if (isBridgeMessage(text)) {
       L.info("vk.message.skipped.bridge_marker", {
         message_id: message?.id ?? message?.conversation_message_id,
@@ -89,13 +101,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const profile = await resolveVkAuthor(fromIdSafe, L);
     const formatted = formatForTelegramHtml({
       text,
-      messageId: message?.id ?? message?.conversation_message_id ?? "unknown",
       displayName: profile.displayName,
       profileUrl: profile.profileUrl
     });
     const plain = formatForTelegramPlain({
       text,
-      messageId: message?.id ?? message?.conversation_message_id ?? "unknown",
       displayName: profile.displayName,
       profileUrl: profile.profileUrl
     });
