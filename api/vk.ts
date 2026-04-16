@@ -15,15 +15,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const event = req.body as any;
 
-  if (!isVkCallbackAuthorized(event)) {
-    log("warn", "vk.callback.unauthorized");
-    res.status(401).send("unauthorized");
+  // VK не всегда присылает `secret` в запросе подтверждения сервера — проверяем secret только после confirmation.
+  if (event?.type === "confirmation") {
+    log("info", "vk.callback.confirmation", { group_id: event?.group_id });
+    res.status(200).send(process.env.VK_CONFIRMATION ?? "");
     return;
   }
 
-  if (event?.type === "confirmation") {
-    log("info", "vk.callback.confirmation");
-    res.status(200).send(process.env.VK_CONFIRMATION ?? "");
+  if (!isVkCallbackAuthorized(event)) {
+    log("warn", "vk.callback.unauthorized");
+    res.status(401).send("unauthorized");
     return;
   }
 
