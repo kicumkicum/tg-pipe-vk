@@ -36,9 +36,9 @@
 
 ## Интеграция VK (Callback API → `/api/vk`)
 
-- [ ] Создать/выбрать VK Community и включить **Callback API**
-- [ ] Указать URL обработчика: `https://<domain>/api/vk`
-- [ ] Задать `secret` в VK и сохранить его значение в `VK_SECRET`
+- [x] Создать/выбрать VK Community и включить **Callback API** (см. `docs/VK_SETUP.md`)
+- [x] Указать URL обработчика: `https://<domain>/api/vk` (см. `docs/VK_SETUP.md`)
+- [x] Задать `secret` в VK и сохранить его значение в `VK_SECRET` (см. `docs/VK_SETUP.md`)
 - [ ] Реализовать обработку служебных событий VK:
   - [ ] На событие `confirmation` отвечать строкой `VK_CONFIRMATION`
   - [ ] На любые неизвестные события отвечать `200 OK` без действий
