@@ -20,3 +20,11 @@ npm run dev
 
 Локальная разработка запускается через `vercel dev`.
 
+## Деплой (Vercel)
+
+- Создай проект в Vercel и задеплой репозиторий (через UI или `vercel` CLI).
+- Добавь переменные окружения в настройках проекта Vercel (из `.env.example`).
+- После деплоя у тебя будут доступны вебхуки:
+  - VK Callback URL: `https://<your-domain>/api/vk`
+  - Telegram Webhook URL: `https://<your-domain>/api/telegram`
+
