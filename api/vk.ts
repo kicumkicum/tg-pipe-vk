@@ -100,17 +100,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       profileUrl: profile.profileUrl
     });
 
-    const outbound = profile.photoUrl
-      ? { ...formatted, photo_url: profile.photoUrl, fallback_text: plain.text }
-      : { ...formatted, fallback_text: plain.text };
+    const outbound = { ...formatted, fallback_text: plain.text };
 
     L.info("vk.relay.start", {
       vk_group_id: event?.group_id,
       message_id: message?.id ?? message?.conversation_message_id,
       peer_id: message?.peer_id,
       from_id: message?.from_id,
-      outbound_text_len: outbound.text.length,
-      has_photo: Boolean(outbound.photo_url)
+      outbound_text_len: outbound.text.length
     });
 
     await safeRetry(() => sendToTelegram(outbound, L), 3, L);

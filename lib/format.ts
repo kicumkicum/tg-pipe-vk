@@ -21,8 +21,6 @@ export function formatForVK(params: { text: string; username?: string; messageId
 export type TelegramHtmlPayload = {
   text: string;
   parse_mode: "HTML";
-  /** Если задан — отправим как фото с подписью (аватар из VK, если API вернул URL). */
-  photo_url?: string;
 };
 
 /**

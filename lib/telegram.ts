@@ -6,12 +6,10 @@ import { requireEnv, requireEnvAll } from "./env";
 import type { RequestLogger } from "./log";
 
 const TG_TEXT_MAX = 4096;
-const TG_CAPTION_MAX = 1024;
 
 export type OutboundTelegram = {
   text: string;
   parse_mode?: "HTML";
-  photo_url?: string;
   /** Plain UTF-16 текст без HTML — если Telegram отверг parse_mode (entities). */
   fallback_text?: string;
 };
@@ -66,46 +64,6 @@ export async function sendToTelegram(payload: OutboundTelegram, logger?: Request
 
   const parseMode = payload.parse_mode;
   const text = truncateUtf16(payload.text, TG_TEXT_MAX);
-
-  if (payload.photo_url) {
-    const caption = truncateUtf16(text, TG_CAPTION_MAX);
-    logger?.info("tg.api.outbound.start", {
-      method: "sendPhoto",
-      chat_id: chatId,
-      caption_len: caption.length,
-      has_parse_mode: Boolean(parseMode)
-    });
-
-    const photoResult = await callTelegramMethod(
-      token,
-      "sendPhoto",
-      {
-        chat_id: chatId,
-        photo: payload.photo_url,
-        caption,
-        parse_mode: parseMode
-      },
-      logger
-    );
-
-    if (photoResult.ok) {
-      const result = photoResult.data.result as { message_id?: number } | undefined;
-      logger?.info("tg.api.outbound.ok", {
-        method: "sendPhoto",
-        http_status: photoResult.http_status,
-        tg_message_id: result?.message_id
-      });
-      return;
-    }
-
-    const photoErr = photoResult.data;
-    logger?.warn("tg.api.outbound.photo_failed_fallback", {
-      http_status: photoResult.http_status,
-      ok: photoErr.ok,
-      tg_error_code: photoErr.ok ? undefined : photoErr.error_code,
-      tg_description: photoErr.ok ? undefined : photoErr.description
-    });
-  }
 
   logger?.info("tg.api.outbound.start", {
     method: "sendMessage",
