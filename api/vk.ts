@@ -1,12 +1,13 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 import { ConfigError } from "../lib/errors";
-import { formatForTelegram, isBridgeMessage } from "../lib/format";
+import { formatForTelegramHtml, isBridgeMessage } from "../lib/format";
 import { summarizeVkCallback } from "../lib/log-sanitize";
 import { createRequestLogger } from "../lib/log";
 import { safeRetry } from "../lib/retry";
 import { isVkCallbackAuthorized } from "../lib/security";
 import { sendToTelegram } from "../lib/telegram";
+import { resolveVkAuthor } from "../lib/vk-profile";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const L = createRequestLogger("vk.webhook");
@@ -81,20 +82,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    const formatted = formatForTelegram({
+    const fromRaw = message?.from_id;
+    const fromId = typeof fromRaw === "number" ? fromRaw : Number(fromRaw);
+    const fromIdSafe = Number.isFinite(fromId) ? fromId : 0;
+
+    const profile = await resolveVkAuthor(fromIdSafe, L);
+    const formatted = formatForTelegramHtml({
       text,
-      fromId: message?.from_id ?? "unknown",
-      messageId: message?.id ?? message?.conversation_message_id ?? "unknown"
+      messageId: message?.id ?? message?.conversation_message_id ?? "unknown",
+      displayName: profile.displayName,
+      profileUrl: profile.profileUrl
     });
+
+    const outbound = profile.photoUrl ? { ...formatted, photo_url: profile.photoUrl } : formatted;
 
     L.info("vk.relay.start", {
       message_id: message?.id ?? message?.conversation_message_id,
       peer_id: message?.peer_id,
       from_id: message?.from_id,
-      outbound_text_len: formatted.text.length
+      outbound_text_len: outbound.text.length,
+      has_photo: Boolean(outbound.photo_url)
     });
 
-    await safeRetry(() => sendToTelegram(formatted, L), 3, L);
+    await safeRetry(() => sendToTelegram(outbound, L), 3, L);
 
     L.info("vk.relay.sent_to_tg", {
       message_id: message?.id ?? message?.conversation_message_id,

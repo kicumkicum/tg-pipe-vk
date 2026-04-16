@@ -5,15 +5,70 @@ import { ApiError, HttpError } from "./errors";
 import { requireEnv, requireEnvAll } from "./env";
 import type { RequestLogger } from "./log";
 
-export async function sendToTelegram(payload: { text: string }, logger?: RequestLogger): Promise<void> {
+const TG_TEXT_MAX = 4096;
+const TG_CAPTION_MAX = 1024;
+
+export type OutboundTelegram = {
+  text: string;
+  parse_mode?: "HTML";
+  photo_url?: string;
+};
+
+function truncateUtf16(s: string, max: number): string {
+  if (s.length <= max) return s;
+  return `${s.slice(0, Math.max(0, max - 1))}…`;
+}
+
+export async function sendToTelegram(payload: OutboundTelegram, logger?: RequestLogger): Promise<void> {
   requireEnvAll(["TG_TOKEN", "TG_CHAT_ID"]);
   const token = requireEnv("TG_TOKEN");
   const chatId = requireEnv("TG_CHAT_ID");
 
+  const parseMode = payload.parse_mode;
+  const text = truncateUtf16(payload.text, TG_TEXT_MAX);
+
+  if (payload.photo_url) {
+    const caption = truncateUtf16(text, TG_CAPTION_MAX);
+    logger?.info("tg.api.outbound.start", {
+      method: "sendPhoto",
+      chat_id: chatId,
+      caption_len: caption.length,
+      has_parse_mode: Boolean(parseMode)
+    });
+
+    const photoResp = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+      method: "POST",
+      headers: { "content-type": "application/json;charset=UTF-8" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        photo: payload.photo_url,
+        caption,
+        parse_mode: parseMode
+      })
+    });
+
+    const photoData = (await photoResp.json()) as TelegramSendMessageOk<unknown> | TelegramSendMessageError;
+
+    if (photoResp.ok && photoData.ok) {
+      const result = photoData.result as { message_id?: number } | undefined;
+      logger?.info("tg.api.outbound.ok", { method: "sendPhoto", http_status: photoResp.status, tg_message_id: result?.message_id });
+      return;
+    }
+
+    const photoErr = !photoData.ok ? photoData : undefined;
+    logger?.warn("tg.api.outbound.photo_failed_fallback", {
+      http_status: photoResp.status,
+      ok: photoData.ok,
+      tg_error_code: photoErr?.error_code,
+      tg_description: photoErr?.description
+    });
+  }
+
   logger?.info("tg.api.outbound.start", {
     method: "sendMessage",
     chat_id: chatId,
-    text_len: payload.text.length
+    text_len: text.length,
+    has_parse_mode: Boolean(parseMode)
   });
 
   const resp = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
@@ -21,7 +76,9 @@ export async function sendToTelegram(payload: { text: string }, logger?: Request
     headers: { "content-type": "application/json;charset=UTF-8" },
     body: JSON.stringify({
       chat_id: chatId,
-      text: payload.text
+      text,
+      parse_mode: parseMode,
+      disable_web_page_preview: true
     })
   });
 
@@ -39,6 +96,5 @@ export async function sendToTelegram(payload: { text: string }, logger?: Request
   }
 
   const result = data.result as { message_id?: number } | undefined;
-  logger?.info("tg.api.outbound.ok", { http_status: resp.status, tg_message_id: result?.message_id });
+  logger?.info("tg.api.outbound.ok", { method: "sendMessage", http_status: resp.status, tg_message_id: result?.message_id });
 }
-
