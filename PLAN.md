@@ -8,7 +8,7 @@
 
 - [x] Выбран формат: **чистые Vercel Functions** (без Next.js)
 - [x] Инициализировать Node.js проект с TypeScript
-- [ ] Настроить базовые скрипты: `dev`, `build` (и `lint` — опционально)
+- [x] Настроить базовые скрипты: `dev`, `build` (и `lint` — опционально)
 - [ ] Добавить зависимости для Vercel Functions:
   - [ ] `@vercel/node` (runtime)
   - [ ] HTTP-клиент для API вызовов (например `axios` или нативный `fetch`)
