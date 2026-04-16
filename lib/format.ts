@@ -26,7 +26,8 @@ export type TelegramHtmlPayload = {
 };
 
 /**
- * Красивое сообщение в Telegram: имя + ссылка на VK, текст в blockquote, маркер моста в spoiler (меньше шума в чате).
+ * Красивое сообщение в Telegram: имя + ссылка на VK, текст с переносами через br, маркер моста в spoiler.
+ * Без blockquote — на части клиентов/версий Bot API это давало 400 / can't parse entities.
  * Маркер по-прежнему в plain text внутри spoiler — `isBridgeMessage` на ответах из TG продолжит работать.
  */
 export function formatForTelegramHtml(params: {
@@ -42,12 +43,26 @@ export function formatForTelegramHtml(params: {
 
   const href = encodeURI(params.profileUrl);
   const header = `🧑 <b>${name}</b> · <a href="${href}">VK</a>`;
-  const quoted = `<blockquote>${body.replace(/\n/g, "<br/>")}</blockquote>`;
+  const bodyHtml = body.replace(/\n/g, "<br/>");
   const footer = `<tg-spoiler>${escapeHtml(bridge)}</tg-spoiler>`;
 
   return {
-    text: `${header}\n\n${quoted}\n\n${footer}`,
+    text: `${header}\n\n${bodyHtml}\n\n${footer}`,
     parse_mode: "HTML"
+  };
+}
+
+/** Plain fallback без parse_mode (если Telegram отверг HTML). */
+export function formatForTelegramPlain(params: {
+  text: string;
+  messageId: number | string;
+  displayName: string;
+  profileUrl: string;
+}): { text: string } {
+  const hash = shortHash(String(params.messageId));
+  const bridge = `[BRIDGE:VK→TG|${hash}]`;
+  return {
+    text: `🧑 ${params.displayName} · ${params.profileUrl}\n\n${params.text}\n\n${bridge}`
   };
 }
 

@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 import { ConfigError } from "../lib/errors";
-import { formatForTelegramHtml, isBridgeMessage } from "../lib/format";
+import { formatForTelegramHtml, formatForTelegramPlain, isBridgeMessage } from "../lib/format";
 import { summarizeVkCallback } from "../lib/log-sanitize";
 import { createRequestLogger } from "../lib/log";
 import { safeRetry } from "../lib/retry";
@@ -93,8 +93,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       displayName: profile.displayName,
       profileUrl: profile.profileUrl
     });
+    const plain = formatForTelegramPlain({
+      text,
+      messageId: message?.id ?? message?.conversation_message_id ?? "unknown",
+      displayName: profile.displayName,
+      profileUrl: profile.profileUrl
+    });
 
-    const outbound = profile.photoUrl ? { ...formatted, photo_url: profile.photoUrl } : formatted;
+    const outbound = profile.photoUrl
+      ? { ...formatted, photo_url: profile.photoUrl, fallback_text: plain.text }
+      : { ...formatted, fallback_text: plain.text };
 
     L.info("vk.relay.start", {
       vk_group_id: event?.group_id,

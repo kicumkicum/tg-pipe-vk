@@ -12,11 +12,51 @@ export type OutboundTelegram = {
   text: string;
   parse_mode?: "HTML";
   photo_url?: string;
+  /** Plain UTF-16 текст без HTML — если Telegram отверг parse_mode (entities). */
+  fallback_text?: string;
 };
 
 function truncateUtf16(s: string, max: number): string {
   if (s.length <= max) return s;
   return `${s.slice(0, Math.max(0, max - 1))}…`;
+}
+
+function isTelegramHtmlEntityError(description?: string): boolean {
+  if (!description) return false;
+  const d = description.toLowerCase();
+  return d.includes("can't parse entities") || d.includes("unsupported start tag") || (d.includes("parse") && d.includes("entit"));
+}
+
+type TelegramResponse = TelegramSendMessageOk<unknown> | TelegramSendMessageError;
+
+async function callTelegramMethod(
+  token: string,
+  method: string,
+  body: Record<string, unknown>,
+  logger?: RequestLogger
+): Promise<{ ok: true; data: TelegramSendMessageOk<unknown>; http_status: number } | { ok: false; data: TelegramResponse; http_status: number; raw: string }> {
+  const resp = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
+    method: "POST",
+    headers: { "content-type": "application/json;charset=UTF-8" },
+    body: JSON.stringify(body)
+  });
+  const raw = await resp.text();
+  let data: TelegramResponse;
+  try {
+    data = JSON.parse(raw) as TelegramResponse;
+  } catch {
+    logger?.warn("tg.api.outbound.invalid_json", {
+      method,
+      http_status: resp.status,
+      body_preview: raw.slice(0, 400)
+    });
+    throw new HttpError(`Telegram ${method} invalid JSON (HTTP ${resp.status})`, resp.status);
+  }
+
+  if (!data.ok) {
+    return { ok: false, data, http_status: resp.status, raw };
+  }
+  return { ok: true, data: data as TelegramSendMessageOk<unknown>, http_status: resp.status };
 }
 
 export async function sendToTelegram(payload: OutboundTelegram, logger?: RequestLogger): Promise<void> {
@@ -36,31 +76,34 @@ export async function sendToTelegram(payload: OutboundTelegram, logger?: Request
       has_parse_mode: Boolean(parseMode)
     });
 
-    const photoResp = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
-      method: "POST",
-      headers: { "content-type": "application/json;charset=UTF-8" },
-      body: JSON.stringify({
+    const photoResult = await callTelegramMethod(
+      token,
+      "sendPhoto",
+      {
         chat_id: chatId,
         photo: payload.photo_url,
         caption,
         parse_mode: parseMode
-      })
-    });
+      },
+      logger
+    );
 
-    const photoData = (await photoResp.json()) as TelegramSendMessageOk<unknown> | TelegramSendMessageError;
-
-    if (photoResp.ok && photoData.ok) {
-      const result = photoData.result as { message_id?: number } | undefined;
-      logger?.info("tg.api.outbound.ok", { method: "sendPhoto", http_status: photoResp.status, tg_message_id: result?.message_id });
+    if (photoResult.ok) {
+      const result = photoResult.data.result as { message_id?: number } | undefined;
+      logger?.info("tg.api.outbound.ok", {
+        method: "sendPhoto",
+        http_status: photoResult.http_status,
+        tg_message_id: result?.message_id
+      });
       return;
     }
 
-    const photoErr = !photoData.ok ? photoData : undefined;
+    const photoErr = photoResult.data;
     logger?.warn("tg.api.outbound.photo_failed_fallback", {
-      http_status: photoResp.status,
-      ok: photoData.ok,
-      tg_error_code: photoErr?.error_code,
-      tg_description: photoErr?.description
+      http_status: photoResult.http_status,
+      ok: photoErr.ok,
+      tg_error_code: photoErr.ok ? undefined : photoErr.error_code,
+      tg_description: photoErr.ok ? undefined : photoErr.description
     });
   }
 
@@ -71,30 +114,56 @@ export async function sendToTelegram(payload: OutboundTelegram, logger?: Request
     has_parse_mode: Boolean(parseMode)
   });
 
-  const resp = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: "POST",
-    headers: { "content-type": "application/json;charset=UTF-8" },
-    body: JSON.stringify({
+  let sendResult = await callTelegramMethod(
+    token,
+    "sendMessage",
+    {
       chat_id: chatId,
       text,
       parse_mode: parseMode,
       disable_web_page_preview: true
-    })
-  });
+    },
+    logger
+  );
 
-  if (!resp.ok) {
-    logger?.warn("tg.api.outbound.http_error", { http_status: resp.status });
-    throw new HttpError(`Telegram API HTTP ${resp.status}`, resp.status);
-  }
-
-  const data = (await resp.json()) as TelegramSendMessageOk<unknown> | TelegramSendMessageError;
-  if (!data.ok) {
-    const code = data.error_code;
+  if (!sendResult.ok) {
+    const err = sendResult.data as TelegramSendMessageError;
+    const code = err.error_code;
     const retryable = code === 429;
-    logger?.warn("tg.api.outbound.api_error", { tg_error_code: code, retryable, tg_description: data.description });
-    throw new ApiError(`Telegram API error${code ? ` ${code}` : ""}: ${data.description ?? "unknown"}`, { code, retryable });
+    logger?.warn("tg.api.outbound.api_error", {
+      http_status: sendResult.http_status,
+      tg_error_code: code,
+      retryable,
+      tg_description: err.description
+    });
+
+    const fb = payload.fallback_text ? truncateUtf16(payload.fallback_text, TG_TEXT_MAX) : undefined;
+    if (parseMode === "HTML" && fb && isTelegramHtmlEntityError(err.description)) {
+      logger?.warn("tg.api.outbound.retry_plain_text", { reason: "html_entity_parse_failed" });
+      sendResult = await callTelegramMethod(
+        token,
+        "sendMessage",
+        {
+          chat_id: chatId,
+          text: fb,
+          disable_web_page_preview: true
+        },
+        logger
+      );
+    }
   }
 
-  const result = data.result as { message_id?: number } | undefined;
-  logger?.info("tg.api.outbound.ok", { method: "sendMessage", http_status: resp.status, tg_message_id: result?.message_id });
+  if (!sendResult.ok) {
+    const err = sendResult.data as TelegramSendMessageError;
+    const code = err.error_code;
+    const retryable = code === 429;
+    throw new ApiError(`Telegram API error${code ? ` ${code}` : ""}: ${err.description ?? "unknown"}`, { code, retryable });
+  }
+
+  const result = sendResult.data.result as { message_id?: number } | undefined;
+  logger?.info("tg.api.outbound.ok", {
+    method: "sendMessage",
+    http_status: sendResult.http_status,
+    tg_message_id: result?.message_id
+  });
 }
