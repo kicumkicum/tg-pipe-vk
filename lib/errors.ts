@@ -20,7 +20,19 @@ export class ApiError extends Error {
   }
 }
 
+/** Не хватает обязательных переменных окружения (конфиг деплоя). */
+export class ConfigError extends Error {
+  public readonly missing: readonly string[];
+
+  constructor(missing: string[]) {
+    super(`Missing required env: ${missing.join(", ")}`);
+    this.name = "ConfigError";
+    this.missing = Object.freeze([...missing]);
+  }
+}
+
 export function isRetryableError(err: unknown): boolean {
+  if (err instanceof ConfigError) return false;
   if (err instanceof ApiError) return err.retryable;
   if (err instanceof HttpError) return err.status === 429 || err.status >= 500;
   if (err instanceof TypeError) return true; // network / fetch errors

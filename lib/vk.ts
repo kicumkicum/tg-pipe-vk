@@ -2,17 +2,13 @@ type VkApiOk<T> = { response: T };
 type VkApiError = { error: { error_code: number; error_msg: string } };
 
 import { ApiError, HttpError } from "./errors";
+import { requireEnv, requireEnvAll } from "./env";
 import type { RequestLogger } from "./log";
 
 const VK_API_VERSION = "5.131";
 
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) throw new Error(`Missing env var: ${name}`);
-  return value;
-}
-
 export async function sendToVK(text: string, logger?: RequestLogger): Promise<void> {
+  requireEnvAll(["VK_TOKEN", "VK_CHAT_ID"]);
   const token = requireEnv("VK_TOKEN");
   const peerId = requireEnv("VK_CHAT_ID");
 

@@ -27,6 +27,8 @@
 - `TG_CHAT_ID`
 - `TG_WEBHOOK_SECRET` (опционально, но рекомендуется)
 
+Убедись, что переменные добавлены **для того окружения, которым пользуешься** (частая ошибка: только *Preview*, а деплой *Production* — тогда `TG_TOKEN` будет «пустым» при запросе из VK). После изменения env сделай **Redeploy**.
+
 ## 3) VK Callback API
 
 - Callback URL: `https://<your-domain>/api/vk`

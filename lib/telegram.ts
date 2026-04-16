@@ -2,15 +2,11 @@ type TelegramSendMessageOk<T> = { ok: true; result: T };
 type TelegramSendMessageError = { ok: false; description?: string; error_code?: number };
 
 import { ApiError, HttpError } from "./errors";
+import { requireEnv, requireEnvAll } from "./env";
 import type { RequestLogger } from "./log";
 
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) throw new Error(`Missing env var: ${name}`);
-  return value;
-}
-
 export async function sendToTelegram(payload: { text: string }, logger?: RequestLogger): Promise<void> {
+  requireEnvAll(["TG_TOKEN", "TG_CHAT_ID"]);
   const token = requireEnv("TG_TOKEN");
   const chatId = requireEnv("TG_CHAT_ID");
 

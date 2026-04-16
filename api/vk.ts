@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
+import { ConfigError } from "../lib/errors";
 import { formatForTelegram, isBridgeMessage } from "../lib/format";
 import { summarizeVkCallback } from "../lib/log-sanitize";
 import { createRequestLogger } from "../lib/log";
@@ -105,6 +106,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(200).send("ok");
     L.info("vk.http.response", { status: 200, kind: "relay_ok", duration_ms: Date.now() - startedAt });
   } catch (err) {
+    if (err instanceof ConfigError) {
+      L.error("vk.config.missing_env", {
+        duration_ms: Date.now() - startedAt,
+        missing: err.missing,
+        hint: "Add these in Vercel Project → Settings → Environment Variables for this environment (Production/Preview), then redeploy."
+      });
+      if (!res.headersSent) {
+        res.status(503).send("misconfigured");
+        L.info("vk.http.response", { status: 503, kind: "config_error" });
+      }
+      return;
+    }
+
     L.error("vk.handler.unhandled", {
       duration_ms: Date.now() - startedAt,
       error: err instanceof Error ? err.message : String(err),
