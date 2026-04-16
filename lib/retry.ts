@@ -1,3 +1,5 @@
+import { isRetryableError } from "./errors";
+
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -11,6 +13,9 @@ export async function safeRetry<T>(fn: () => Promise<T>, retries = 3): Promise<T
       return await fn();
     } catch (err) {
       lastError = err;
+      if (!isRetryableError(err)) {
+        throw err;
+      }
       if (i < retries - 1) {
         await sleep(delay);
         delay *= 2;

@@ -1,6 +1,8 @@
 type VkApiOk<T> = { response: T };
 type VkApiError = { error: { error_code: number; error_msg: string } };
 
+import { ApiError, HttpError } from "./errors";
+
 const VK_API_VERSION = "5.131";
 
 function requireEnv(name: string): string {
@@ -28,12 +30,14 @@ export async function sendToVK(text: string): Promise<void> {
   });
 
   if (!resp.ok) {
-    throw new Error(`VK API HTTP ${resp.status}`);
+    throw new HttpError(`VK API HTTP ${resp.status}`, resp.status);
   }
 
   const data = (await resp.json()) as VkApiOk<unknown> | VkApiError;
   if ("error" in data) {
-    throw new Error(`VK API error ${data.error.error_code}: ${data.error.error_msg}`);
+    const code = data.error.error_code;
+    const retryable = code === 6 || code === 10;
+    throw new ApiError(`VK API error ${code}: ${data.error.error_msg}`, { code, retryable });
   }
 }
 
