@@ -23,6 +23,7 @@ npm run dev
 ## Деплой (Vercel)
 
 - Создай проект в Vercel и задеплой репозиторий (через UI или `vercel` CLI).
+- В настройках проекта выставь **Framework Preset: Other** и **Build Command: `npm run build`**. Если Vercel требует **Output Directory** `public`, в репозитории уже есть папка `public/` (иначе сборка может упасть с *missing public directory*).
 - Добавь переменные окружения в настройках проекта Vercel (из `.env.example`).
 - После деплоя у тебя будут доступны вебхуки:
   - VK Callback URL: `https://<your-domain>/api/vk`

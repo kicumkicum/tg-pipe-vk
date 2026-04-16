@@ -5,6 +5,16 @@
 - Импортируй репозиторий в Vercel (UI) или используй CLI:
   - `vercel`
 
+### Настройки сборки (важно)
+
+В **Project → Settings → General → Build & Development Settings**:
+
+- **Framework Preset**: `Other`
+- **Build Command**: `npm run build` (компиляция TypeScript; `api/*.ts` подхватываются как Serverless Functions)
+- **Output Directory**: `public` **или оставь пустым**
+
+В репозитории есть минимальная статическая папка `public/` (чтобы деплой не падал с ошибкой *“No Output Directory named public”*, если в настройках проекта указан `public`).
+
 ## 2) Env vars
 
 В настройках проекта Vercel добавь переменные окружения (см. `.env.example`):
