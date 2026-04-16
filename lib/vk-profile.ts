@@ -5,6 +5,11 @@ import type { RequestLogger } from "./log";
 export type VkAuthorProfile = {
   displayName: string;
   profileUrl: string;
+  /**
+   * Квадратное превью из VK (`photo_100`, обычно ~100×100px).
+   * Ровно 128×128 задать через Bot API нельзя — Telegram сам масштабирует картинку в чате.
+   */
+  avatarPhotoUrl?: string;
 };
 
 type VkApiOk<T> = { response: T };
@@ -36,7 +41,7 @@ async function vkCall<T>(method: string, params: Record<string, string>, logger?
   return data.response;
 }
 
-/** Имя и ссылка на профиль/сообщество автора сообщения VK (без фото — только текст в Telegram). */
+/** Имя, ссылка и при наличии маленькое фото (`photo_100`) для Telegram. */
 export async function resolveVkAuthor(fromId: number, logger?: RequestLogger): Promise<VkAuthorProfile> {
   if (!Number.isFinite(fromId) || fromId === 0) {
     return { displayName: "VK", profileUrl: "https://vk.com/" };
@@ -48,7 +53,7 @@ export async function resolveVkAuthor(fromId: number, logger?: RequestLogger): P
         "users.get",
         {
           user_ids: String(fromId),
-          fields: "first_name,last_name,screen_name"
+          fields: "photo_100,first_name,last_name,screen_name"
         },
         logger
       );
@@ -59,7 +64,8 @@ export async function resolveVkAuthor(fromId: number, logger?: RequestLogger): P
       const screen = typeof u?.screen_name === "string" ? u.screen_name : "";
       const displayName = name || (screen ? `@${screen}` : `id ${fromId}`);
       const profileUrl = screen ? `https://vk.com/${screen}` : `https://vk.com/id${fromId}`;
-      return { displayName, profileUrl };
+      const avatar = typeof u?.photo_100 === "string" && u.photo_100.length > 0 ? u.photo_100 : undefined;
+      return { displayName, profileUrl, avatarPhotoUrl: avatar };
     }
 
     const gid = Math.abs(fromId);
@@ -67,7 +73,7 @@ export async function resolveVkAuthor(fromId: number, logger?: RequestLogger): P
       "groups.getById",
       {
         group_ids: String(gid),
-        fields: "name,screen_name"
+        fields: "photo_100,name,screen_name"
       },
       logger
     );
@@ -75,7 +81,8 @@ export async function resolveVkAuthor(fromId: number, logger?: RequestLogger): P
     const name = typeof g?.name === "string" ? g.name : `club ${gid}`;
     const screen = typeof g?.screen_name === "string" ? g.screen_name : "";
     const profileUrl = screen ? `https://vk.com/${screen}` : `https://vk.com/club${gid}`;
-    return { displayName: name, profileUrl };
+    const avatar = typeof g?.photo_100 === "string" && g.photo_100.length > 0 ? g.photo_100 : undefined;
+    return { displayName: name, profileUrl, avatarPhotoUrl: avatar };
   } catch (e) {
     if (e instanceof ConfigError) throw e;
     if (fromId > 0) return { displayName: `id ${fromId}`, profileUrl: `https://vk.com/id${fromId}` };
