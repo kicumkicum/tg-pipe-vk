@@ -76,13 +76,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       fullName ||
       (typeof from?.username === "string" && from.username.length > 0 ? `@${from.username}` : "Telegram");
 
-    const profileUrl =
-      typeof from?.username === "string" && from.username.length > 0
-        ? `https://t.me/${from.username}`
-        : typeof from?.id === "number"
-          ? `tg://user?id=${from.id}`
-          : "https://t.me/";
-
     const messageUrl = telegramMessageWebUrl({
       chatId: message.chat.id,
       messageId: message.message_id,
@@ -93,7 +86,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const formatted = formatForVK({
       text,
       displayName,
-      profileUrl,
       messageUrl,
       embedSeed
     });
@@ -101,10 +93,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     L.info("tg.relay.start", {
       message_id: message.message_id,
       chat_id: message?.chat?.id,
-      outbound_text_len: formatted.length
+      outbound_text_len: formatted.message.length
     });
 
-    await safeRetry(() => sendToVK(formatted, L), 3, L);
+    await safeRetry(() => sendToVK(formatted.message, L, { format_data: formatted.format_data }), 3, L);
 
     L.info("tg.relay.sent_to_vk", {
       message_id: message.message_id,

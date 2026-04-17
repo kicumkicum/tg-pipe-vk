@@ -113,14 +113,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const formatted = formatForTelegramHtml({
       text,
       displayName: profile.displayName,
-      profileUrl: profile.profileUrl,
       messageUrl,
       embedSeed
     });
     const plain = formatForTelegramPlain({
       text,
       displayName: profile.displayName,
-      profileUrl: profile.profileUrl,
       messageUrl,
       embedSeed
     });

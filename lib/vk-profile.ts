@@ -15,7 +15,7 @@ export type VkAuthorProfile = {
 type VkApiOk<T> = { response: T };
 type VkApiError = { error: { error_code: number; error_msg: string } };
 
-const VK_API_VERSION = "5.131";
+const VK_API_VERSION = "5.199";
 
 function vkMethodUrl(method: string, params: Record<string, string>): string {
   const q = new URLSearchParams({

@@ -5,9 +5,13 @@ import { ApiError, HttpError } from "./errors";
 import { requireEnv, requireEnvAll } from "./env";
 import type { RequestLogger } from "./log";
 
-const VK_API_VERSION = "5.131";
+const VK_API_VERSION = "5.199";
 
-export async function sendToVK(text: string, logger?: RequestLogger): Promise<void> {
+export async function sendToVK(
+  text: string,
+  logger?: RequestLogger,
+  opts?: { format_data?: string }
+): Promise<void> {
   requireEnvAll(["VK_TOKEN", "VK_CHAT_ID"]);
   const token = requireEnv("VK_TOKEN");
   const peerId = requireEnv("VK_CHAT_ID");
@@ -25,6 +29,9 @@ export async function sendToVK(text: string, logger?: RequestLogger): Promise<vo
     access_token: token,
     v: VK_API_VERSION
   });
+  if (opts?.format_data) {
+    body.set("format_data", opts.format_data);
+  }
 
   const resp = await fetch("https://api.vk.com/method/messages.send", {
     method: "POST",

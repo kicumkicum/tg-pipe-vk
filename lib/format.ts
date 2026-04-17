@@ -50,31 +50,45 @@ export function telegramMessageWebUrl(params: { chatId: number; messageId: numbe
   return `tg://openmessage?chat_id=${params.chatId}&message_id=${params.messageId}`;
 }
 
-function relayHeaderPlainLine(p: { displayName: string; profileUrl: string; messageUrl: string }): string {
+function relayHeaderPlainLine(p: { displayName: string; messageUrl: string }): string {
   const name = p.displayName.trim() || "user";
-  return `${name} · VK ${p.profileUrl} · 🔗 ${p.messageUrl}`;
+  return `${name} · 🔗 ${p.messageUrl}`;
 }
 
-function relayHeaderHtmlLine(p: { displayName: string; profileUrl: string; messageUrl: string }): string {
+function relayHeaderHtmlLine(p: { displayName: string; messageUrl: string }): string {
   const name = escapeHtml(p.displayName);
-  const hp = escapeHtmlAttr(p.profileUrl);
   const hm = escapeHtmlAttr(p.messageUrl);
-  return `<b>${name}</b> · <a href="${hp}">VK</a> · <a href="${hm}">🔗</a>`;
+  return `<b>${name}</b> · <a href="${hm}">🔗</a>`;
 }
+
+/** Длина префикса в UTF-16 code units (как в VK `format_data`). */
+function vkUtf16CodeUnitLength(s: string): number {
+  return Buffer.from(s, "utf16le").length / 2;
+}
+
+export type VkRelayPayload = {
+  message: string;
+  /** Параметр `messages.send` → `format_data`: жирное только имя в начале текста. */
+  format_data: string;
+};
 
 export function formatForVK(params: {
   text: string;
   displayName: string;
-  profileUrl: string;
   messageUrl: string;
   embedSeed: string;
-}): string {
+}): VkRelayPayload {
+  const name = params.displayName.trim() || "user";
   const head = relayHeaderPlainLine({
-    displayName: params.displayName,
-    profileUrl: params.profileUrl,
+    displayName: name,
     messageUrl: params.messageUrl
   });
-  return `${head}\n\n${params.text}${embedRelayTag(params.embedSeed)}`;
+  const message = `${head}\n\n${params.text}${embedRelayTag(params.embedSeed)}`;
+  const format_data = JSON.stringify({
+    version: 1,
+    items: [{ type: "bold", offset: 0, length: vkUtf16CodeUnitLength(name) }]
+  });
+  return { message, format_data };
 }
 
 export type TelegramHtmlPayload = {
@@ -83,20 +97,18 @@ export type TelegramHtmlPayload = {
 };
 
 /**
- * Сообщение в Telegram: имя + ссылка на VK, текст с переносами через br.
+ * Сообщение в Telegram: имя + ссылка на исходное сообщение (🔗), текст через br.
  * Анти-петля: в TG пропускаем `from.is_bot`, в VK — исходящие `out` (см. обработчики).
  */
 export function formatForTelegramHtml(params: {
   text: string;
   displayName: string;
-  profileUrl: string;
   messageUrl: string;
   embedSeed: string;
 }): TelegramHtmlPayload {
   const body = escapeHtml(params.text).replace(/\r\n/g, "\n").replace(/\r/g, "\n");
   const header = relayHeaderHtmlLine({
     displayName: params.displayName,
-    profileUrl: params.profileUrl,
     messageUrl: params.messageUrl
   });
   const bodyHtml = body.replace(/\n/g, "<br/>");
@@ -112,14 +124,12 @@ export function formatForTelegramHtml(params: {
 export function formatForTelegramPlain(params: {
   text: string;
   displayName: string;
-  profileUrl: string;
   messageUrl: string;
   embedSeed: string;
 }): { text: string } {
   const tail = embedRelayTag(params.embedSeed);
   const head = relayHeaderPlainLine({
     displayName: params.displayName,
-    profileUrl: params.profileUrl,
     messageUrl: params.messageUrl
   });
   return {
