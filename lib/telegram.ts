@@ -11,8 +11,10 @@ const TG_CAPTION_MAX = 1024;
 export type OutboundTelegram = {
   text: string;
   parse_mode?: "HTML";
-  /** Маленькое фото (VK `photo_100`); отправка через `sendPhoto` + caption. */
+  /** Фото (контент или аватар); отправка через `sendPhoto` + caption. */
   photo_url?: string;
+  /** Контент-фото всегда отправляем, аватар можно отключить env-ом. */
+  photo_kind?: "content" | "avatar";
   /** Plain UTF-16 текст без HTML — если Telegram отверг parse_mode (entities). */
   fallback_text?: string;
 };
@@ -69,14 +71,17 @@ export async function sendToTelegram(payload: OutboundTelegram, logger?: Request
   const text = truncateUtf16(payload.text, TG_TEXT_MAX);
   const sendAvatar = process.env.TG_SEND_VK_AVATAR !== "0" && process.env.TG_SEND_VK_AVATAR !== "false";
 
-  if (sendAvatar && payload.photo_url) {
+  const kind = payload.photo_kind ?? "avatar";
+  const shouldSendPhoto = Boolean(payload.photo_url) && (kind === "content" || sendAvatar);
+
+  if (shouldSendPhoto && payload.photo_url) {
     const caption = truncateUtf16(text, TG_CAPTION_MAX);
     logger?.info("tg.api.outbound.start", {
       method: "sendPhoto",
       chat_id: chatId,
       caption_len: caption.length,
       has_parse_mode: Boolean(parseMode),
-      vk_photo: "photo_100"
+      photo_kind: kind
     });
 
     const photoResult = await callTelegramMethod(

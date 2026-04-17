@@ -6,7 +6,7 @@ import { createRequestLogger } from "../lib/log";
 import { summarizeTelegramUpdate } from "../lib/log-sanitize";
 import { safeRetry } from "../lib/retry";
 import { getTelegramWebhookSecret, isTelegramWebhookAuthorized } from "../lib/security";
-import { sendToVK } from "../lib/vk";
+import { sendPhotoToVK, sendToVK } from "../lib/vk";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const L = createRequestLogger("tg.webhook");
@@ -55,15 +55,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    const text = message?.text;
-    if (typeof text !== "string" || text.length === 0) {
+    const isPhoto = Array.isArray(message?.photo) && message.photo.length > 0;
+    const text = typeof message?.text === "string" ? message.text : "";
+    const caption = typeof message?.caption === "string" ? message.caption : "";
+    const bodyText = isPhoto ? caption : text;
+
+    if (bodyText.length === 0 && !isPhoto) {
       L.info("tg.update.ignored.non_text", { message_id: message?.message_id, duration_ms: Date.now() - startedAt });
       res.status(200).json({ ok: true });
       L.info("tg.http.response", { status: 200, kind: "ignored_non_text" });
       return;
     }
 
-    if (isBridgeMessage(text)) {
+    if (isBridgeMessage(bodyText)) {
       L.info("tg.update.skipped.bridge_marker", { message_id: message?.message_id, duration_ms: Date.now() - startedAt });
       res.status(200).json({ ok: true });
       L.info("tg.http.response", { status: 200, kind: "skipped_bridge" });
@@ -84,7 +88,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const embedSeed = `tg2vk:${message.message_id}:${message.chat?.id}`;
     const formatted = formatForVK({
-      text,
+      text: bodyText,
       displayName,
       messageUrl,
       embedSeed
@@ -96,7 +100,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       outbound_text_len: formatted.message.length
     });
 
-    await safeRetry(() => sendToVK(formatted.message, L, { format_data: formatted.format_data }), 3, L);
+    if (!isPhoto) {
+      await safeRetry(() => sendToVK(formatted.message, L, { format_data: formatted.format_data }), 3, L);
+    } else {
+      const tgToken = process.env.TG_TOKEN ?? "";
+      const best = message.photo[message.photo.length - 1];
+      const fileId = best?.file_id;
+      if (!tgToken || typeof fileId !== "string" || fileId.length === 0) {
+        await safeRetry(() => sendToVK(formatted.message, L, { format_data: formatted.format_data }), 3, L);
+      } else {
+        const fileResp = await fetch(`https://api.telegram.org/bot${tgToken}/getFile`, {
+          method: "POST",
+          headers: { "content-type": "application/json;charset=UTF-8" },
+          body: JSON.stringify({ file_id: fileId })
+        });
+        const fileJson = (await fileResp.json()) as any;
+        const filePath = fileJson?.result?.file_path;
+        if (!fileResp.ok || typeof filePath !== "string" || filePath.length === 0) {
+          L.warn("tg.file.getFile_failed", { http_status: fileResp.status });
+          await safeRetry(() => sendToVK(formatted.message, L, { format_data: formatted.format_data }), 3, L);
+        } else {
+          const dl = await fetch(`https://api.telegram.org/file/bot${tgToken}/${filePath}`);
+          if (!dl.ok) {
+            L.warn("tg.file.download_failed", { http_status: dl.status });
+            await safeRetry(() => sendToVK(formatted.message, L, { format_data: formatted.format_data }), 3, L);
+          } else {
+            const buf = new Uint8Array(await dl.arrayBuffer());
+            const filename = filePath.split("/").pop() || "photo.jpg";
+            await safeRetry(
+              () => sendPhotoToVK({ buffer: buf, filename, caption: formatted.message, format_data: formatted.format_data }, L),
+              3,
+              L
+            );
+          }
+        }
+      }
+    }
 
     L.info("tg.relay.sent_to_vk", {
       message_id: message.message_id,

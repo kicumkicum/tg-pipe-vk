@@ -9,6 +9,24 @@ import { isVkCallbackAuthorized } from "../lib/security";
 import { sendToTelegram } from "../lib/telegram";
 import { resolveVkAuthor } from "../lib/vk-profile";
 
+function bestVkPhotoUrl(message: any): string | undefined {
+  const atts = Array.isArray(message?.attachments) ? message.attachments : [];
+  for (const a of atts) {
+    if (a?.type !== "photo") continue;
+    const sizes = Array.isArray(a?.photo?.sizes) ? a.photo.sizes : [];
+    let best: any | undefined;
+    for (const s of sizes) {
+      if (typeof s?.url !== "string" || s.url.length === 0) continue;
+      const w = typeof s?.width === "number" ? s.width : 0;
+      const h = typeof s?.height === "number" ? s.height : 0;
+      if (!best) best = s;
+      else if (w * h > (best.width ?? 0) * (best.height ?? 0)) best = s;
+    }
+    if (best?.url) return String(best.url);
+  }
+  return undefined;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const L = createRequestLogger("vk.webhook");
   const startedAt = Date.now();
@@ -59,8 +77,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const message = event?.object?.message ?? event?.object;
-    const text = message?.text;
-    if (typeof text !== "string" || text.length === 0) {
+    const photoUrl = bestVkPhotoUrl(message);
+    const textRaw = message?.text;
+    const text = typeof textRaw === "string" ? textRaw : "";
+
+    if (text.length === 0 && !photoUrl) {
       L.info("vk.message.ignored.non_text", {
         message_id: message?.id ?? message?.conversation_message_id,
         peer_id: message?.peer_id,
@@ -124,19 +145,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     const outbound = profile.avatarPhotoUrl
-      ? { ...formatted, photo_url: profile.avatarPhotoUrl, fallback_text: plain.text }
+      ? { ...formatted, photo_url: profile.avatarPhotoUrl, photo_kind: "avatar" as const, fallback_text: plain.text }
       : { ...formatted, fallback_text: plain.text };
+
+    const outboundWithPhoto = photoUrl
+      ? { ...outbound, photo_url: photoUrl, photo_kind: "content" as const }
+      : outbound;
 
     L.info("vk.relay.start", {
       vk_group_id: event?.group_id,
       message_id: message?.id ?? message?.conversation_message_id,
       peer_id: message?.peer_id,
       from_id: message?.from_id,
-      outbound_text_len: outbound.text.length,
-      has_photo: Boolean(profile.avatarPhotoUrl)
+      outbound_text_len: outboundWithPhoto.text.length,
+      has_photo: Boolean(photoUrl || profile.avatarPhotoUrl),
+      has_content_photo: Boolean(photoUrl)
     });
 
-    await safeRetry(() => sendToTelegram(outbound, L), 3, L);
+    await safeRetry(() => sendToTelegram(outboundWithPhoto, L), 3, L);
 
     L.info("vk.relay.sent_to_tg", {
       vk_group_id: event?.group_id,
