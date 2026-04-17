@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
-import { ConfigError } from "../lib/errors";
+import { ApiError, ConfigError } from "../lib/errors";
 import { formatForVK, isBridgeMessage, telegramMessageWebUrl } from "../lib/format";
 import { createRequestLogger } from "../lib/log";
 import { summarizeTelegramUpdate } from "../lib/log-sanitize";
@@ -127,11 +127,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           } else {
             const buf = new Uint8Array(await dl.arrayBuffer());
             const filename = filePath.split("/").pop() || "photo.jpg";
-            await safeRetry(
-              () => sendPhotoToVK({ buffer: buf, filename, caption: formatted.message, format_data: formatted.format_data }, L),
-              3,
-              L
-            );
+            try {
+              await safeRetry(
+                () => sendPhotoToVK({ buffer: buf, filename, caption: formatted.message, format_data: formatted.format_data }, L),
+                3,
+                L
+              );
+            } catch (e) {
+              if (e instanceof ApiError && e.code === 15) {
+                L.warn("vk.photo.relay.no_scope_fallback_text", {
+                  vk_error_code: e.code,
+                  hint: "Grant VK token access to call photos.getMessagesUploadServer / photos.saveMessagesPhoto (photos scope). Falling back to text-only."
+                });
+                await safeRetry(() => sendToVK(formatted.message, L, { format_data: formatted.format_data }), 3, L);
+              } else {
+                throw e;
+              }
+            }
           }
         }
       }
