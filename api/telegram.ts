@@ -93,6 +93,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       messageUrl,
       embedSeed
     });
+    const formattedPicFallback = isPhoto
+      ? formatForVK({
+          text: bodyText.length > 0 ? `${bodyText}\n[PIC]` : "[PIC]",
+          displayName,
+          messageUrl,
+          embedSeed
+        })
+      : formatted;
 
     L.info("tg.relay.start", {
       message_id: message.message_id,
@@ -107,7 +115,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const best = message.photo[message.photo.length - 1];
       const fileId = best?.file_id;
       if (!tgToken || typeof fileId !== "string" || fileId.length === 0) {
-        await safeRetry(() => sendToVK(formatted.message, L, { format_data: formatted.format_data }), 3, L);
+        await safeRetry(() => sendToVK(formattedPicFallback.message, L, { format_data: formattedPicFallback.format_data }), 3, L);
       } else {
         const fileResp = await fetch(`https://api.telegram.org/bot${tgToken}/getFile`, {
           method: "POST",
@@ -118,12 +126,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const filePath = fileJson?.result?.file_path;
         if (!fileResp.ok || typeof filePath !== "string" || filePath.length === 0) {
           L.warn("tg.file.getFile_failed", { http_status: fileResp.status });
-          await safeRetry(() => sendToVK(formatted.message, L, { format_data: formatted.format_data }), 3, L);
+          await safeRetry(() => sendToVK(formattedPicFallback.message, L, { format_data: formattedPicFallback.format_data }), 3, L);
         } else {
           const dl = await fetch(`https://api.telegram.org/file/bot${tgToken}/${filePath}`);
           if (!dl.ok) {
             L.warn("tg.file.download_failed", { http_status: dl.status });
-            await safeRetry(() => sendToVK(formatted.message, L, { format_data: formatted.format_data }), 3, L);
+            await safeRetry(() => sendToVK(formattedPicFallback.message, L, { format_data: formattedPicFallback.format_data }), 3, L);
           } else {
             const buf = new Uint8Array(await dl.arrayBuffer());
             const filename = filePath.split("/").pop() || "photo.jpg";
@@ -139,7 +147,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                   vk_error_code: e.code,
                   hint: "Grant VK token access to call photos.getMessagesUploadServer / photos.saveMessagesPhoto (photos scope). Falling back to text-only."
                 });
-                await safeRetry(() => sendToVK(formatted.message, L, { format_data: formatted.format_data }), 3, L);
+                await safeRetry(() => sendToVK(formattedPicFallback.message, L, { format_data: formattedPicFallback.format_data }), 3, L);
               } else {
                 throw e;
               }

@@ -18,7 +18,9 @@ export function summarizeVkCallback(event: unknown): Record<string, unknown> {
     api_version: e.v,
     has_secret_field: typeof e.secret === "string",
     object_keys: obj && typeof obj === "object" ? Object.keys(obj).slice(0, 12) : undefined,
-    message_id: msg?.id ?? msg?.conversation_message_id,
+    // В VK `id` и `conversation_message_id` — разные идентификаторы; логируем оба, чтобы не путать с `msgid` в ссылках.
+    message_id: msg?.id,
+    conversation_message_id: msg?.conversation_message_id,
     peer_id: msg?.peer_id,
     from_id: msg?.from_id,
     text_len: typeof text === "string" ? text.length : undefined,

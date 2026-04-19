@@ -36,7 +36,15 @@ function escapeHtmlAttr(text: string): string {
 
 /** Ссылка на сообщение в диалоге VK (веб / приложение). */
 export function vkMessageWebUrl(peerId: number, conversationMessageId: number): string {
-  return `https://vk.com/im?sel=${encodeURIComponent(String(peerId))}&msgid=${encodeURIComponent(String(conversationMessageId))}`;
+  const mid = Number.isFinite(conversationMessageId) && conversationMessageId > 0 ? conversationMessageId : 0;
+  const msgid = mid > 0 ? `&msgid=${encodeURIComponent(String(mid))}` : "";
+
+  // Беседы: в веб-клиенте обычно `im/convo/20000000XX` и `sel=c20000000XX`, а не `sel=20000000XX`.
+  if (Number.isFinite(peerId) && peerId >= 2000000000) {
+    return `https://vk.com/im?sel=c${encodeURIComponent(String(peerId))}${msgid}`;
+  }
+
+  return `https://vk.com/im?sel=${encodeURIComponent(String(peerId))}${msgid}`;
 }
 
 /**
