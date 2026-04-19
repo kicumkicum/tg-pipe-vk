@@ -15,8 +15,14 @@ function parseArgs(argv) {
     else if (a === "--drop-pending-updates") flags.add("drop_pending_updates");
     else if (a.startsWith("--url=")) kv.set("url", a.slice("--url=".length));
     else if (a.startsWith("--secret-token=")) kv.set("secret_token", a.slice("--secret-token=".length));
+    else if (a.startsWith("--token=")) kv.set("token", a.slice("--token=".length));
   }
   return { flags, kv };
+}
+
+function looksLikeTelegramBotToken(s) {
+  // Typical format: 123456789:AA... (digits, colon, alnum/_- )
+  return /^\d{6,}:[A-Za-z0-9_-]{20,}$/.test(s);
 }
 
 function loadDotEnvFile(filePath) {
@@ -49,7 +55,7 @@ function loadDotEnvFile(filePath) {
 async function tgApi(method, body) {
   const token = process.env.TG_TOKEN;
   if (!token || token.trim() === "") {
-    throw new Error("Missing TG_TOKEN");
+    throw new Error("Missing TG_TOKEN (env) or --token=... (CLI)");
   }
 
   const resp = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
@@ -82,11 +88,12 @@ function usage() {
       "  npm run tg:set-webhook",
       "",
       "Env:",
-      "  TG_TOKEN                 (required)",
+      "  TG_TOKEN                 (required unless --token=...)",
       "  TG_WEBHOOK_URL           (required unless --url=...)",
       "  TG_WEBHOOK_SECRET        (optional; sets secret_token)",
       "",
       "Flags:",
+      "  --token=123456:AA...     (optional override for TG_TOKEN)",
       "  --url=https://.../api/telegram",
       "  --secret-token=...       (optional override)",
       "  --drop-pending-updates   (optional)",
@@ -94,7 +101,8 @@ function usage() {
       "",
       "Notes:",
       "  - Loads ./.env.local automatically if present (set TG_LOAD_DOTENV=0 to disable).",
-      "  - allowed_updates is restricted to [message] for this bridge."
+      "  - allowed_updates is restricted to [message] for this bridge.",
+      "  - IMPORTANT: Bot token goes to TG_TOKEN/--token. Webhook secret goes to TG_WEBHOOK_SECRET/--secret-token."
     ].join("\n")
   );
 }
@@ -106,6 +114,9 @@ if (flags.has("info")) {
     if (process.env.TG_LOAD_DOTENV !== "0") {
       loadDotEnvFile(path.join(repoRoot, ".env.local"));
     }
+
+    const tokenFromCli = kv.get("token")?.trim();
+    if (tokenFromCli) process.env.TG_TOKEN = tokenFromCli;
 
     const info = await tgApi("getWebhookInfo", {});
     // eslint-disable-next-line no-console
@@ -128,8 +139,19 @@ try {
     loadDotEnvFile(path.join(repoRoot, ".env.local"));
   }
 
+  const tokenFromCli = kv.get("token")?.trim();
+  if (tokenFromCli) process.env.TG_TOKEN = tokenFromCli;
+
   const url = (kv.get("url") ?? process.env.TG_WEBHOOK_URL ?? "").trim();
   const secretToken = (kv.get("secret_token") ?? process.env.TG_WEBHOOK_SECRET ?? "").trim();
+
+  if (secretToken && looksLikeTelegramBotToken(secretToken)) {
+    throw new Error(
+      "It looks like you passed a Telegram BOT TOKEN to --secret-token. " +
+        "Use TG_TOKEN/--token for the bot token, and use a separate random string for webhook secret " +
+        "(TG_WEBHOOK_SECRET / --secret-token)."
+    );
+  }
 
   if (!url) {
     usage();

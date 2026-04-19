@@ -41,17 +41,17 @@
 Примеры:
 
 ```bash
-TG_WEBHOOK_URL="https://<your-domain>/api/telegram" npm run tg:set-webhook
+TG_TOKEN="123456:AA…" TG_WEBHOOK_URL="https://<your-domain>/api/telegram" npm run tg:set-webhook
 ```
 
 ```bash
-npm run tg:set-webhook -- --url="https://<your-domain>/api/telegram" --secret-token="your_secret"
+npm run tg:set-webhook -- --token="123456:AA…" --url="https://<your-domain>/api/telegram" --secret-token="your_webhook_secret"
 ```
 
 Проверить текущий webhook:
 
 ```bash
-npm run tg:webhook-info
+TG_TOKEN="123456:AA…" npm run tg:webhook-info
 ```
 
 Примечания:
