@@ -65,6 +65,40 @@ function vkPeerDiag(event: any, message: any): Record<string, unknown> {
   };
 }
 
+function redactKey(key: string): boolean {
+  const k = key.toLowerCase();
+  return (
+    k === "secret" ||
+    k === "access_token" ||
+    k.endsWith("_token") ||
+    k.includes("password") ||
+    k === "access_key" ||
+    k.endsWith("_key")
+  );
+}
+
+/**
+ * Полный дамп куска колбэка для отладки (VK может прислать много полей).
+ * По умолчанию режем длину, чтобы не раздувать логи; можно поднять `VK_CALLBACK_LOG_MAX`.
+ */
+function safeJsonPreview(value: unknown, maxLen: number): { json_len: number; json: string } {
+  try {
+    const json = JSON.stringify(value, (k, v) => {
+      if (k !== "" && redactKey(String(k))) {
+        if (typeof v === "string") return `[REDACTED len=${v.length}]`;
+        return "[REDACTED]";
+      }
+      if (typeof v === "string" && v.length > 4096) return `${v.slice(0, 4096)}…`;
+      return v;
+    });
+
+    const out = json.length > maxLen ? `${json.slice(0, maxLen)}…` : json;
+    return { json_len: json.length, json: out };
+  } catch {
+    return { json_len: 0, json: "[unserializable]" };
+  }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const L = createRequestLogger("vk.webhook");
   const startedAt = Date.now();
@@ -116,6 +150,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const message = event?.object?.message ?? event?.object;
     L.info("vk.callback.peer_diag", { ...vkPeerDiag(event, message), duration_ms: Date.now() - startedAt });
+    {
+      const rawMax = process.env.VK_CALLBACK_LOG_MAX;
+      const parsedMax = rawMax && rawMax.trim().length > 0 ? Number(rawMax) : NaN;
+      const max = Math.max(2000, Math.min(200_000, Number.isFinite(parsedMax) ? parsedMax : 24000));
+      const top = safeJsonPreview({ type: event?.type, group_id: event?.group_id, v: event?.v, object: event?.object }, max);
+      L.info("vk.callback.event_json", {
+        json_len: top.json_len,
+        json: top.json,
+        duration_ms: Date.now() - startedAt
+      });
+    }
     const photoUrl = bestVkPhotoUrl(message);
     const textRaw = message?.text;
     const text = typeof textRaw === "string" ? textRaw : "";
