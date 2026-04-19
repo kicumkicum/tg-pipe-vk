@@ -30,12 +30,12 @@
 
 ### Через npm-скрипт (локально)
 
-Скрипт: `npm run tg:set-webhook` (см. `scripts/tg-set-webhook.mjs`).
+Скрипт: `npm run tg:set-webhook` — это **тонкая обёртка над `curl`** (см. `package.json`).
 
 Переменные:
 
 - **`TG_TOKEN`**: токен бота (обязательно)
-- **`TG_WEBHOOK_URL`**: полный URL вебхука, например `https://<project>.vercel.app/api/telegram` (обязательно, если не передать `--url=...`)
+- **`TG_WEBHOOK_URL`**: полный URL вебхука, например `https://<project>.vercel.app/api/telegram` (обязательно)
 - **`TG_WEBHOOK_SECRET`**: опционально — Telegram отправит его в заголовке `X-Telegram-Bot-Api-Secret-Token`
 
 Примеры:
@@ -45,7 +45,7 @@ TG_TOKEN="123456:AA…" TG_WEBHOOK_URL="https://<your-domain>/api/telegram" npm 
 ```
 
 ```bash
-npm run tg:set-webhook -- --token="123456:AA…" --url="https://<your-domain>/api/telegram" --secret-token="your_webhook_secret"
+TG_TOKEN="123456:AA…" TG_WEBHOOK_URL="https://<your-domain>/api/telegram" TG_WEBHOOK_SECRET="your_webhook_secret" npm run tg:set-webhook
 ```
 
 Проверить текущий webhook:
@@ -54,8 +54,17 @@ npm run tg:set-webhook -- --token="123456:AA…" --url="https://<your-domain>/ap
 TG_TOKEN="123456:AA…" npm run tg:webhook-info
 ```
 
+Эквивалент “в одну строку” без npm (если удобнее):
+
+```bash
+TG_TOKEN="123456:AA…" TG_WEBHOOK_URL="https://<your-domain>/api/telegram" \
+curl -sS "https://api.telegram.org/bot${TG_TOKEN}/setWebhook" \
+  --data-urlencode "url=${TG_WEBHOOK_URL}" \
+  --data-urlencode 'allowed_updates=["message"]' \
+  ${TG_WEBHOOK_SECRET:+--data-urlencode "secret_token=${TG_WEBHOOK_SECRET}"}
+```
+
 Примечания:
 
-- По умолчанию скрипт пытается подхватить `./.env.local` (если файл есть). Отключить: `TG_LOAD_DOTENV=0`.
 - `allowed_updates` выставляется в **`["message"]`**, потому что этот мост обрабатывает только `message`.
 

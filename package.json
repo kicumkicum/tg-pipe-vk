@@ -7,8 +7,8 @@
     "dev": "vercel dev",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "tg:set-webhook": "node ./scripts/tg-set-webhook.mjs",
-    "tg:webhook-info": "node ./scripts/tg-set-webhook.mjs --info"
+    "tg:set-webhook": "bash --noprofile --norc -c 'set -euo pipefail; : \"${TG_TOKEN:?TG_TOKEN is required}\"; : \"${TG_WEBHOOK_URL:?TG_WEBHOOK_URL is required}\"; curl -sS \"https://api.telegram.org/bot${TG_TOKEN}/setWebhook\" --data-urlencode \"url=${TG_WEBHOOK_URL}\" --data-urlencode \"allowed_updates=[\\\"message\\\"]\" ${TG_WEBHOOK_SECRET:+--data-urlencode \"secret_token=${TG_WEBHOOK_SECRET}\"}; echo; curl -sS \"https://api.telegram.org/bot${TG_TOKEN}/getWebhookInfo\"; echo'",
+    "tg:webhook-info": "bash --noprofile --norc -c 'set -euo pipefail; : \"${TG_TOKEN:?TG_TOKEN is required}\"; curl -sS \"https://api.telegram.org/bot${TG_TOKEN}/getWebhookInfo\"; echo'"
   },
   "keywords": [],
   "author": "",
