@@ -8,6 +8,23 @@ import { safeRetry } from "../lib/retry";
 import { getTelegramWebhookSecret, isTelegramWebhookAuthorized } from "../lib/security";
 import { sendPhotoToVK, sendToVK } from "../lib/vk";
 
+function tgMessageAttachmentFlags(message: any): Record<string, boolean> {
+  return {
+    has_photo: Array.isArray(message?.photo) && message.photo.length > 0,
+    has_document: Boolean(message?.document),
+    has_sticker: Boolean(message?.sticker),
+    has_video: Boolean(message?.video),
+    has_video_note: Boolean(message?.video_note),
+    has_voice: Boolean(message?.voice),
+    has_audio: Boolean(message?.audio),
+    has_animation: Boolean(message?.animation),
+    has_poll: Boolean(message?.poll),
+    has_location: Boolean(message?.location),
+    has_contact: Boolean(message?.contact),
+    has_dice: Boolean(message?.dice)
+  };
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const L = createRequestLogger("tg.webhook");
   const startedAt = Date.now();
@@ -61,7 +78,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const bodyText = isPhoto ? caption : text;
 
     if (bodyText.length === 0 && !isPhoto) {
-      L.info("tg.update.ignored.non_text", { message_id: message?.message_id, duration_ms: Date.now() - startedAt });
+      L.info("tg.update.ignored.non_text", {
+        message_id: message?.message_id,
+        chat_id: message?.chat?.id,
+        message_keys: message && typeof message === "object" ? Object.keys(message).slice(0, 40) : undefined,
+        ...tgMessageAttachmentFlags(message),
+        duration_ms: Date.now() - startedAt
+      });
       res.status(200).json({ ok: true });
       L.info("tg.http.response", { status: 200, kind: "ignored_non_text" });
       return;
