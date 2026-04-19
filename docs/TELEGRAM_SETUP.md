@@ -28,3 +28,34 @@
 - Рекомендуется задавать secret token и проверять его в обработчике:
   - `TG_WEBHOOK_SECRET` ↔ заголовок `X-Telegram-Bot-Api-Secret-Token`
 
+### Через npm-скрипт (локально)
+
+Скрипт: `npm run tg:set-webhook` (см. `scripts/tg-set-webhook.mjs`).
+
+Переменные:
+
+- **`TG_TOKEN`**: токен бота (обязательно)
+- **`TG_WEBHOOK_URL`**: полный URL вебхука, например `https://<project>.vercel.app/api/telegram` (обязательно, если не передать `--url=...`)
+- **`TG_WEBHOOK_SECRET`**: опционально — Telegram отправит его в заголовке `X-Telegram-Bot-Api-Secret-Token`
+
+Примеры:
+
+```bash
+TG_WEBHOOK_URL="https://<your-domain>/api/telegram" npm run tg:set-webhook
+```
+
+```bash
+npm run tg:set-webhook -- --url="https://<your-domain>/api/telegram" --secret-token="your_secret"
+```
+
+Проверить текущий webhook:
+
+```bash
+npm run tg:webhook-info
+```
+
+Примечания:
+
+- По умолчанию скрипт пытается подхватить `./.env.local` (если файл есть). Отключить: `TG_LOAD_DOTENV=0`.
+- `allowed_updates` выставляется в **`["message"]`**, потому что этот мост обрабатывает только `message`.
+
