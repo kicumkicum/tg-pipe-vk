@@ -255,6 +255,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       from_id: message?.from_id,
       duration_ms: Date.now() - startedAt
     });
+    L.info("vk.relay.sent_to_tg::event", event);
+    L.info("vk.relay.sent_to_tg::message", message);
 
     res.status(200).send("ok");
     L.info("vk.http.response", { status: 200, kind: "relay_ok", duration_ms: Date.now() - startedAt });
