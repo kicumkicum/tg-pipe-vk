@@ -27,6 +27,44 @@ function bestVkPhotoUrl(message: any): string | undefined {
   return undefined;
 }
 
+function vkPeerDiag(event: any, message: any): Record<string, unknown> {
+  const obj = event?.object;
+  const msg = obj?.message;
+
+  const pick = (v: unknown): number | undefined => {
+    if (typeof v === "number" && Number.isFinite(v)) return v;
+    if (typeof v === "string" && v.trim().length > 0) {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : undefined;
+    }
+    return undefined;
+  };
+
+  const peer_message = pick(message?.peer_id);
+  const peer_object = pick(obj?.peer_id);
+  const peer_msg_nested = pick(msg?.peer_id);
+
+  const configured_chat_id = process.env.VK_CHAT_ID;
+
+  return {
+    object_keys: obj && typeof obj === "object" ? Object.keys(obj).slice(0, 20) : undefined,
+    message_keys: message && typeof message === "object" ? Object.keys(message).slice(0, 24) : undefined,
+    peer_id_message: peer_message,
+    peer_id_object: peer_object,
+    peer_id_object_message: peer_msg_nested,
+    peer_ids_distinct: Array.from(
+      new Set([peer_message, peer_object, peer_msg_nested].filter((x): x is number => typeof x === "number"))
+    ),
+    peer_id_mismatch_object_vs_message:
+      typeof peer_message === "number" && typeof peer_object === "number" ? peer_message !== peer_object : undefined,
+    vk_chat_id_env: configured_chat_id,
+    vk_chat_id_env_matches_message_peer:
+      typeof configured_chat_id === "string" && configured_chat_id.length > 0 && typeof peer_message === "number"
+        ? configured_chat_id === String(peer_message)
+        : undefined
+  };
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const L = createRequestLogger("vk.webhook");
   const startedAt = Date.now();
@@ -77,6 +115,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const message = event?.object?.message ?? event?.object;
+    L.info("vk.callback.peer_diag", { ...vkPeerDiag(event, message), duration_ms: Date.now() - startedAt });
     const photoUrl = bestVkPhotoUrl(message);
     const textRaw = message?.text;
     const text = typeof textRaw === "string" ? textRaw : "";
