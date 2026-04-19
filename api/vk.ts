@@ -213,7 +213,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const cmidRaw = message?.conversation_message_id ?? message?.id;
     const cmid = typeof cmidRaw === "number" ? cmidRaw : Number(cmidRaw);
     const cmidSafe = Number.isFinite(cmid) ? cmid : 0;
-    const messageUrl = vkMessageWebUrl(peerIdSafe, cmidSafe);
+    const joinUrlRaw = process.env.VK_CHAT_JOIN_URL?.trim();
+    const messageUrl =
+      joinUrlRaw && joinUrlRaw.length > 0 ? joinUrlRaw : vkMessageWebUrl(peerIdSafe, cmidSafe);
 
     const formatted = formatForTelegramHtml({
       text,
@@ -243,7 +245,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       from_id: message?.from_id,
       outbound_text_len: outboundWithPhoto.text.length,
       has_photo: Boolean(photoUrl || profile.avatarPhotoUrl),
-      has_content_photo: Boolean(photoUrl)
+      has_content_photo: Boolean(photoUrl),
+      vk_join_url_override: Boolean(joinUrlRaw && joinUrlRaw.length > 0)
     });
 
     await safeRetry(() => sendToTelegram(outboundWithPhoto, L), 3, L);
@@ -255,8 +258,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       from_id: message?.from_id,
       duration_ms: Date.now() - startedAt
     });
-    L.info("vk.relay.sent_to_tg::event", event);
-    L.info("vk.relay.sent_to_tg::message", message);
 
     res.status(200).send("ok");
     L.info("vk.http.response", { status: 200, kind: "relay_ok", duration_ms: Date.now() - startedAt });
