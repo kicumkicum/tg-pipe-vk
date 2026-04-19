@@ -30,7 +30,7 @@
 
 ### Через npm-скрипт (локально)
 
-Скрипт: `npm run tg:set-webhook` — это **тонкая обёртка над `curl`** (см. `package.json`).
+Скрипт: `npm run tg:set-webhook` — это **обёртка над** `tools/change-telegram-bot-host.js` (см. `package.json`).
 
 Переменные:
 
@@ -54,17 +54,13 @@ TG_TOKEN="123456:AA…" TG_WEBHOOK_URL="https://<your-domain>/api/telegram" TG_W
 TG_TOKEN="123456:AA…" npm run tg:webhook-info
 ```
 
-Эквивалент “в одну строку” без npm (если удобнее):
+Низкоуровневый вариант (как в комментарии внутри `tools/change-telegram-bot-host.js`):
 
 ```bash
-TG_TOKEN="123456:AA…" TG_WEBHOOK_URL="https://<your-domain>/api/telegram" \
-curl -sS "https://api.telegram.org/bot${TG_TOKEN}/setWebhook" \
-  --data-urlencode "url=${TG_WEBHOOK_URL}" \
-  --data-urlencode 'allowed_updates=["message"]' \
-  ${TG_WEBHOOK_SECRET:+--data-urlencode "secret_token=${TG_WEBHOOK_SECRET}"}
+HOST="https://<your-domain>" ENDPOINT="api/telegram" TOKEN="123456:AA…" node tools/change-telegram-bot-host.js
 ```
 
 Примечания:
 
-- `allowed_updates` выставляется в **`["message"]`**, потому что этот мост обрабатывает только `message`.
+- `npm run tg:set-webhook` парсит `TG_WEBHOOK_URL` на `HOST` + `ENDPOINT`, чтобы не получилось `.../api/telegram/api/telegram`.
 
