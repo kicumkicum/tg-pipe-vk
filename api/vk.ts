@@ -27,6 +27,16 @@ function bestVkPhotoUrl(message: any): string | undefined {
   return undefined;
 }
 
+function bestVkPollQuestion(message: any): string | undefined {
+  const atts = Array.isArray(message?.attachments) ? message.attachments : [];
+  for (const a of atts) {
+    if (a?.type !== "poll") continue;
+    const q = a?.poll?.question;
+    if (typeof q === "string" && q.length > 0) return q;
+  }
+  return undefined;
+}
+
 function vkPeerDiag(event: any, message: any): Record<string, unknown> {
   const obj = event?.object;
   const msg = obj?.message;
@@ -162,10 +172,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
     const photoUrl = bestVkPhotoUrl(message);
+    const pollQuestion = bestVkPollQuestion(message);
+    const isPoll = typeof pollQuestion === "string" && pollQuestion.length > 0;
     const textRaw = message?.text;
-    const text = typeof textRaw === "string" ? textRaw : "";
+    const textBase = typeof textRaw === "string" ? textRaw : "";
+    const text = isPoll ? `Создан опрос: ${pollQuestion}` : textBase;
 
-    if (text.length === 0 && !photoUrl) {
+    if (text.length === 0 && !photoUrl && !isPoll) {
       L.info("vk.message.ignored.non_text", {
         message_id: message?.id ?? message?.conversation_message_id,
         peer_id: message?.peer_id,

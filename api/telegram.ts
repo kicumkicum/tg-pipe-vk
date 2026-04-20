@@ -73,11 +73,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const isPhoto = Array.isArray(message?.photo) && message.photo.length > 0;
+    const pollQuestion = typeof message?.poll?.question === "string" ? message.poll.question : "";
+    const isPoll = pollQuestion.length > 0;
     const text = typeof message?.text === "string" ? message.text : "";
     const caption = typeof message?.caption === "string" ? message.caption : "";
-    const bodyText = isPhoto ? caption : text;
+    const bodyText = isPoll ? `Создан опрос: ${pollQuestion}` : isPhoto ? caption : text;
 
-    if (bodyText.length === 0 && !isPhoto) {
+    if (bodyText.length === 0 && !isPhoto && !isPoll) {
       L.info("tg.update.ignored.non_text", {
         message_id: message?.message_id,
         chat_id: message?.chat?.id,
