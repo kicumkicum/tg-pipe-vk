@@ -5,6 +5,7 @@ import { formatForVK, isBridgeMessage, telegramMessageWebUrl } from "../lib/form
 import { createRequestLogger } from "../lib/log";
 import { summarizeTelegramUpdate } from "../lib/log-sanitize";
 import { safeRetry } from "../lib/retry";
+import { isAllowedTelegramChat } from "../lib/relay-scope";
 import { getTelegramWebhookSecret, isTelegramWebhookAuthorized } from "../lib/security";
 import { sendPhotoToVK, sendToVK } from "../lib/vk";
 
@@ -69,6 +70,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       L.info("tg.update.skipped.from_bot", { message_id: message?.message_id, duration_ms: Date.now() - startedAt });
       res.status(200).json({ ok: true });
       L.info("tg.http.response", { status: 200, kind: "skipped_from_bot" });
+      return;
+    }
+
+    if (!isAllowedTelegramChat(message?.chat?.id)) {
+      L.info("tg.update.skipped.wrong_chat", {
+        message_id: message?.message_id,
+        chat_id: message?.chat?.id,
+        expected_chat_id: process.env.TG_CHAT_ID,
+        duration_ms: Date.now() - startedAt
+      });
+      res.status(200).json({ ok: true });
+      L.info("tg.http.response", { status: 200, kind: "skipped_wrong_chat" });
       return;
     }
 

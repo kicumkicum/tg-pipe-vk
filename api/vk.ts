@@ -5,6 +5,7 @@ import { formatForTelegramHtml, formatForTelegramPlain, isBridgeMessage, vkMessa
 import { summarizeVkCallback } from "../lib/log-sanitize";
 import { createRequestLogger } from "../lib/log";
 import { safeRetry } from "../lib/retry";
+import { isAllowedVkPeer } from "../lib/relay-scope";
 import { isVkCallbackAuthorized } from "../lib/security";
 import { sendToTelegram } from "../lib/telegram";
 import { resolveVkAuthor } from "../lib/vk-profile";
@@ -159,6 +160,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const message = event?.object?.message ?? event?.object;
+
+    if (!isAllowedVkPeer(message?.peer_id)) {
+      L.info("vk.message.skipped.wrong_peer", {
+        message_id: message?.id ?? message?.conversation_message_id,
+        peer_id: message?.peer_id,
+        expected_peer_id: process.env.VK_CHAT_ID,
+        duration_ms: Date.now() - startedAt
+      });
+      res.status(200).send("ok");
+      L.info("vk.http.response", { status: 200, kind: "skipped_wrong_peer" });
+      return;
+    }
+
     L.info("vk.callback.peer_diag", { ...vkPeerDiag(event, message), duration_ms: Date.now() - startedAt });
     {
       const rawMax = process.env.VK_CALLBACK_LOG_MAX;
