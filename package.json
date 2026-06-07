@@ -7,6 +7,7 @@
     "dev": "vercel dev",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test dist/lib/relay-scope.test.js",
     "tg:set-webhook": "bash --noprofile --norc -c 'set -euo pipefail; u=\"${TG_WEBHOOK_URL:?TG_WEBHOOK_URL is required}\"; t=\"${TG_TOKEN:?TG_TOKEN is required}\"; if [[ \"$u\" != http://* && \"$u\" != https://* ]]; then echo \"TG_WEBHOOK_URL must start with http:// or https://\" >&2; exit 1; fi; if [[ \"$u\" == http://* ]]; then rest=\"${u#http://}\"; scheme=\"http\"; else rest=\"${u#https://}\"; scheme=\"https\"; fi; hostport=\"${rest%%/*}\"; path=\"${rest#*/}\"; if [[ \"$path\" == \"$rest\" ]]; then path=\"\"; fi; path=\"${path#/}\"; export HOST=\"${scheme}://${hostport}\"; if [[ -z \"$path\" ]]; then export ENDPOINT=\"api/telegram\"; else export ENDPOINT=\"$path\"; fi; export TOKEN=\"$t\"; node tools/change-telegram-bot-host.js'",
     "tg:webhook-info": "bash --noprofile --norc -c 'set -euo pipefail; : \"${TG_TOKEN:?TG_TOKEN is required}\"; curl -sS \"https://api.telegram.org/bot${TG_TOKEN}/getWebhookInfo\"; echo'"
   },
